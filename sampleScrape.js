@@ -19,10 +19,11 @@ casper.on('remote.message', function(msg) {
 casper.start('https://www.edmunds.com/new-car-ratings/');
 
 var articles = [];
+
 casper.then(function() {
 
     articles = this.evaluate(function(){
-        articles = [];
+        var scrapedArticles = [];
 
         var logo = 'https:' + $('.edmunds-logo').find('img').attr('src');
 
@@ -48,7 +49,7 @@ casper.then(function() {
                 .find('.icon-star-half')
                 .each(function(e){ rating += .5; });
 
-            articles.push({
+            scrapedArticles.push({
                 image: image,
                 title: title,
                 summary: summary,
@@ -57,7 +58,7 @@ casper.then(function() {
                 byline: ""
             });
         });
-        return articles;
+        return scrapedArticles;
     });
 
     var articleMap = [];
@@ -71,7 +72,7 @@ casper.then(function() {
         }
     };
 
-    for(var i = 0; i < 5; i++){
+    for(var i = 0; i < articles.length; i++){
         var article = articles[i];
         links.push(article.link);
 
@@ -81,19 +82,27 @@ casper.then(function() {
 
         articleMap.push(arr);
     }
+
     casper.eachThen(links, function(response){
         this.echo(response.data);
         var url = response.data;
+
         this.thenOpen(response.data, function(nested){
             article = lookup(url, articleMap);
 
-            this.evaluate(function(){
+            article.byline = this.evaluate(function(){
+                //scope - article not accessible in here
+                //no casper, no this, no article
+                //this code is running a diff process
+                //that process is the JS interpreter inside of phantom
+
+                //only variables inside of this function are in scope
                 var byline = $('.by-line:nth-child(1)').text();
-                article.byline = byline;
+                return byline;
             });
         });
     }).then(function(){
-        for(i = 0; i < 5; i++){
+        for(i = 0; i < articles.length; i++){
             var article = articles[i];
             this.echo(article.image);
             this.echo(article.title);
